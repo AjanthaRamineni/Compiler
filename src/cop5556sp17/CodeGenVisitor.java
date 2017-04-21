@@ -6,6 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -67,13 +68,16 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 		this.DEVEL = DEVEL;
 		this.GRADE = GRADE;
 		this.sourceFileName = sourceFileName;
+		slot_scope_stack = new Stack<Integer>();
+		slot_inc = 1;
 	}
 
 	ClassWriter cw;
 	String className;
 	String classDesc;
 	String sourceFileName;
-
+	Stack<Integer> slot_scope_stack;
+	int slot_inc;
 	MethodVisitor mv; // visitor of method currently under construction
 
 	/** Indicates whether genPrint and genPrintTOS should generate code. */
@@ -263,7 +267,7 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 		type1 = binaryExpression.getE1().get_type();
 		op = binaryExpression.getOp();
 		//Visiting E0 and E1
-		if(op.kind.equals(PLUS))
+		if(op.kind == PLUS)
 		{
 			binaryExpression.getE0().visit(this, arg);
 			binaryExpression.getE1().visit(this, arg);
@@ -276,7 +280,7 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "add", PLPRuntimeImageOps.addSig, false);
 			}
 		}
-		else if(op.kind.equals(MINUS))
+		else if(op.kind == MINUS)
 		{
 			binaryExpression.getE0().visit(this, arg);
 			binaryExpression.getE1().visit(this, arg);
@@ -289,7 +293,7 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "sub", PLPRuntimeImageOps.subSig, false);
 			}
 		}
-		else if(op.kind==(TIMES))
+		else if(op.kind== TIMES )
 		{
 			binaryExpression.getE0().visit(this, arg);
 			binaryExpression.getE1().visit(this, arg);
@@ -307,7 +311,7 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "mul", PLPRuntimeImageOps.mulSig, false);
 			}
 		}
-		else if(op.kind==(DIV))
+		else if(op.kind== DIV)
 		{
 			binaryExpression.getE0().visit(this, arg);
 			binaryExpression.getE1().visit(this, arg);
@@ -320,7 +324,7 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "div", PLPRuntimeImageOps.divSig, false);
 			}
 		}
-		else if(op.kind==(MOD))
+		else if(op.kind==MOD)
 		{
 			binaryExpression.getE0().visit(this, arg);
 			binaryExpression.getE1().visit(this, arg);
@@ -334,146 +338,150 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "mod", PLPRuntimeImageOps.modSig, false);
 			}
 		}
-		switch (op.kind) {
-		case OR:
-			binaryExpression.getE0().visit(this, arg);
-			Label label1_or = new Label();
-			mv.visitJumpInsn(IFNE, label1_or);
-			binaryExpression.getE1().visit(this, arg);
-			mv.visitJumpInsn(IFNE, label1_or);
-			mv.visitInsn(ICONST_0);
-			Label label2_or = new Label();
-			mv.visitJumpInsn(GOTO, label2_or);
-			mv.visitLabel(label1_or);
-			mv.visitInsn(ICONST_1);
-			mv.visitLabel(label2_or);
-			break;
-
-		case AND:
-			binaryExpression.getE0().visit(this, arg);
-			Label label1_and = new Label();
-			mv.visitJumpInsn(IFEQ, label1_and);
-			binaryExpression.getE1().visit(this, arg);
-			mv.visitJumpInsn(IFEQ, label1_and);
-			mv.visitInsn(ICONST_1);
-			Label label2_and = new Label();
-			mv.visitJumpInsn(GOTO, label2_and);
-			mv.visitLabel(label1_and);
-			mv.visitInsn(ICONST_0);
-			mv.visitLabel(label2_and);
-			break;
-
-		case LT:
-			binaryExpression.getE0().visit(this, arg);
-			binaryExpression.getE1().visit(this, arg);
-			Label label1_lt = new Label();
-			mv.visitJumpInsn(IF_ICMPGE, label1_lt);
-			mv.visitInsn(ICONST_1);
-			Label label2_lt = new Label();
-			mv.visitJumpInsn(GOTO, label2_lt);
-			mv.visitLabel(label1_lt);
-			mv.visitInsn(ICONST_0);
-			mv.visitLabel(label2_lt);
-			break;
-
-		case LE:
-			binaryExpression.getE0().visit(this, arg);
-			binaryExpression.getE1().visit(this, arg);
-			Label label1_le = new Label();
-			mv.visitJumpInsn(IF_ICMPGT, label1_le);
-			mv.visitInsn(ICONST_1);
-			Label label2_le = new Label();
-			mv.visitJumpInsn(GOTO, label2_le);
-			mv.visitLabel(label1_le);
-			mv.visitInsn(ICONST_0);
-			mv.visitLabel(label2_le);
-
-			break;
-
-		case GT:
-			binaryExpression.getE0().visit(this, arg);
-			binaryExpression.getE1().visit(this, arg);
-			Label label1_gt = new Label();
-			mv.visitJumpInsn(IF_ICMPLE, label1_gt);
-			mv.visitInsn(ICONST_1);
-			Label label2_gt = new Label();
-			mv.visitJumpInsn(GOTO, label2_gt);
-			mv.visitLabel(label1_gt);
-			mv.visitInsn(ICONST_0);
-			mv.visitLabel(label2_gt);
-			break;
-
-		case GE:
-			binaryExpression.getE0().visit(this, arg);
-			binaryExpression.getE1().visit(this, arg);
-			Label label1_ge = new Label();
-			mv.visitJumpInsn(IF_ICMPLT, label1_ge);
-			mv.visitInsn(ICONST_1);
-			Label label2_ge = new Label();
-			mv.visitJumpInsn(GOTO, label2_ge);
-			mv.visitLabel(label1_ge);
-			mv.visitInsn(ICONST_0);
-			mv.visitLabel(label2_ge);
-			break;
-
-		case EQUAL:
-			binaryExpression.getE0().visit(this, arg);
-			binaryExpression.getE1().visit(this, arg);
-			if (type0 == TypeName.INTEGER || type0 == BOOLEAN)
-			{
-				Label label1_eq = new Label();
-				mv.visitJumpInsn(IF_ICMPNE, label1_eq);
-				mv.visitInsn(ICONST_1);
-				Label label2_eq = new Label();
-				mv.visitJumpInsn(GOTO, label2_eq);
-				mv.visitLabel(label1_eq);
+		else
+		{
+			switch (op.kind) {
+			case OR:
+				binaryExpression.getE0().visit(this, arg);
+				Label label1_or = new Label();
+				mv.visitJumpInsn(IFNE, label1_or);
+				binaryExpression.getE1().visit(this, arg);
+				mv.visitJumpInsn(IFNE, label1_or);
 				mv.visitInsn(ICONST_0);
-				mv.visitLabel(label2_eq);
-			}
-			else
-			{
-				Label label1_eq = new Label();
-				mv.visitJumpInsn(IF_ACMPNE, label1_eq);
+				Label label2_or = new Label();
+				mv.visitJumpInsn(GOTO, label2_or);
+				mv.visitLabel(label1_or);
 				mv.visitInsn(ICONST_1);
-				Label label2_eq = new Label();
-				mv.visitJumpInsn(GOTO, label2_eq);
-				mv.visitLabel(label1_eq);
-				mv.visitInsn(ICONST_0);
-				mv.visitLabel(label2_eq);
-			}
+				mv.visitLabel(label2_or);
+				break;
 
-			break;
-
-		case NOTEQUAL:
-			binaryExpression.getE0().visit(this, arg);
-			binaryExpression.getE1().visit(this, arg);
-			if (type0 == TypeName.INTEGER || type0 == BOOLEAN)
-			{
-				Label label1_neq = new Label();
-				mv.visitJumpInsn(IF_ICMPEQ, label1_neq);
+			case AND:
+				binaryExpression.getE0().visit(this, arg);
+				Label label1_and = new Label();
+				mv.visitJumpInsn(IFEQ, label1_and);
+				binaryExpression.getE1().visit(this, arg);
+				mv.visitJumpInsn(IFEQ, label1_and);
 				mv.visitInsn(ICONST_1);
-				Label label2_neq = new Label();
-				mv.visitJumpInsn(GOTO, label2_neq);
-				mv.visitLabel(label1_neq);
+				Label label2_and = new Label();
+				mv.visitJumpInsn(GOTO, label2_and);
+				mv.visitLabel(label1_and);
 				mv.visitInsn(ICONST_0);
-				mv.visitLabel(label2_neq);
-			}
-			else
-			{
-				Label label1_neq = new Label();
-				mv.visitJumpInsn(IF_ACMPEQ, label1_neq);
-				mv.visitInsn(ICONST_1);
-				Label label2_neq = new Label();
-				mv.visitJumpInsn(GOTO, label2_neq);
-				mv.visitLabel(label1_neq);
-				mv.visitInsn(ICONST_0);
-				mv.visitLabel(label2_neq);
-			}
-			break;
+				mv.visitLabel(label2_and);
+				break;
 
-		default:
-			break;
+			case LT:
+				binaryExpression.getE0().visit(this, arg);
+				binaryExpression.getE1().visit(this, arg);
+				Label label1_lt = new Label();
+				mv.visitJumpInsn(IF_ICMPGE, label1_lt);
+				mv.visitInsn(ICONST_1);
+				Label label2_lt = new Label();
+				mv.visitJumpInsn(GOTO, label2_lt);
+				mv.visitLabel(label1_lt);
+				mv.visitInsn(ICONST_0);
+				mv.visitLabel(label2_lt);
+				break;
+
+			case LE:
+				binaryExpression.getE0().visit(this, arg);
+				binaryExpression.getE1().visit(this, arg);
+				Label label1_le = new Label();
+				mv.visitJumpInsn(IF_ICMPGT, label1_le);
+				mv.visitInsn(ICONST_1);
+				Label label2_le = new Label();
+				mv.visitJumpInsn(GOTO, label2_le);
+				mv.visitLabel(label1_le);
+				mv.visitInsn(ICONST_0);
+				mv.visitLabel(label2_le);
+
+				break;
+
+			case GT:
+				binaryExpression.getE0().visit(this, arg);
+				binaryExpression.getE1().visit(this, arg);
+				Label label1_gt = new Label();
+				mv.visitJumpInsn(IF_ICMPLE, label1_gt);
+				mv.visitInsn(ICONST_1);
+				Label label2_gt = new Label();
+				mv.visitJumpInsn(GOTO, label2_gt);
+				mv.visitLabel(label1_gt);
+				mv.visitInsn(ICONST_0);
+				mv.visitLabel(label2_gt);
+				break;
+
+			case GE:
+				binaryExpression.getE0().visit(this, arg);
+				binaryExpression.getE1().visit(this, arg);
+				Label label1_ge = new Label();
+				mv.visitJumpInsn(IF_ICMPLT, label1_ge);
+				mv.visitInsn(ICONST_1);
+				Label label2_ge = new Label();
+				mv.visitJumpInsn(GOTO, label2_ge);
+				mv.visitLabel(label1_ge);
+				mv.visitInsn(ICONST_0);
+				mv.visitLabel(label2_ge);
+				break;
+
+			case EQUAL:
+				binaryExpression.getE0().visit(this, arg);
+				binaryExpression.getE1().visit(this, arg);
+				if (type0 == TypeName.INTEGER || type0 == BOOLEAN)
+				{
+					Label label1_eq = new Label();
+					mv.visitJumpInsn(IF_ICMPNE, label1_eq);
+					mv.visitInsn(ICONST_1);
+					Label label2_eq = new Label();
+					mv.visitJumpInsn(GOTO, label2_eq);
+					mv.visitLabel(label1_eq);
+					mv.visitInsn(ICONST_0);
+					mv.visitLabel(label2_eq);
+				}
+				else
+				{
+					Label label1_eq = new Label();
+					mv.visitJumpInsn(IF_ACMPNE, label1_eq);
+					mv.visitInsn(ICONST_1);
+					Label label2_eq = new Label();
+					mv.visitJumpInsn(GOTO, label2_eq);
+					mv.visitLabel(label1_eq);
+					mv.visitInsn(ICONST_0);
+					mv.visitLabel(label2_eq);
+				}
+
+				break;
+
+			case NOTEQUAL:
+				binaryExpression.getE0().visit(this, arg);
+				binaryExpression.getE1().visit(this, arg);
+				if (type0 == TypeName.INTEGER || type0 == BOOLEAN)
+				{
+					Label label1_neq = new Label();
+					mv.visitJumpInsn(IF_ICMPEQ, label1_neq);
+					mv.visitInsn(ICONST_1);
+					Label label2_neq = new Label();
+					mv.visitJumpInsn(GOTO, label2_neq);
+					mv.visitLabel(label1_neq);
+					mv.visitInsn(ICONST_0);
+					mv.visitLabel(label2_neq);
+				}
+				else
+				{
+					Label label1_neq = new Label();
+					mv.visitJumpInsn(IF_ACMPEQ, label1_neq);
+					mv.visitInsn(ICONST_1);
+					Label label2_neq = new Label();
+					mv.visitJumpInsn(GOTO, label2_neq);
+					mv.visitLabel(label1_neq);
+					mv.visitInsn(ICONST_0);
+					mv.visitLabel(label2_neq);
+				}
+				break;
+
+			default:
+				break;
+			}
 		}
+
 		return null;
 	}
 
@@ -481,44 +489,27 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 	public Object visitBlock(Block block, Object arg) throws Exception {
 		//TODO  Implement this
 //		int slot_number=(int)arg;
-		Label block_start = new Label();
-		mv.visitLineNumber(block.getFirstToken().getLinePos().line, block_start);
-		mv.visitLabel(block_start);
+		Label start_label = new Label();
+		mv.visitLineNumber(block.getFirstToken().getLinePos().line, start_label);
+		mv.visitLabel(start_label);
 		ArrayList<Dec> decs_stack = block.getDecs();
 		ArrayList<Statement> stat_stack = block.getStatements();
 		int i,j;
-		Label start_label = new Label();
-		mv.visitLabel(start_label);
-		for(j=0,i=0; i<decs_stack.size() && j<stat_stack.size();)
+//		Label start_label = new Label();
+//		mv.visitLabel(start_label);
+		for(i=0;i<decs_stack.size();i++)
+			decs_stack.get(i).visit(this, mv);
+		for(j=0; j<stat_stack.size();j++)
 		{
-			if(decs_stack.get(i).firstToken.pos > stat_stack.get(j).firstToken.pos)
-			{
-				stat_stack.get(j).visit(this, mv);
+			stat_stack.get(j).visit(this, mv);
 
-				if (stat_stack.get(j) instanceof BinaryChain)
-				{
-					mv.visitInsn(POP);
-				}
-				j++;
-			}
-			else
-			{
-				decs_stack.get(i).visit(this, mv);
-				i++;
-			}
-		}
-		for(int i1=i;i1<decs_stack.size();i1++)
-		{
-			decs_stack.get(i1).visit(this, mv);
-		}
-		for(int j1=j;j1<stat_stack.size();j1++)
-		{
-			stat_stack.get(j1).visit(this, mv);
 			if (stat_stack.get(j) instanceof BinaryChain)
 			{
 				mv.visitInsn(POP);
 			}
+//				j++;
 		}
+
 		Label end_label = new Label();
 		mv.visitLineNumber(0, end_label);
 		mv.visitLabel(end_label);
@@ -526,8 +517,12 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 		List<Dec> list = block.getDecs();
 		for (Dec dec : list)
 		{
-			mv.visitLocalVariable(dec.getIdent().getText(), dec.getType().getJVMTypeDesc(), null, block_start,
+			mv.visitLocalVariable(dec.getIdent().getText(), dec.getType().getJVMTypeDesc(), null, start_label,
 			end_label, dec.slot_number);
+			slot_inc--;
+//			slot_stack--;
+//			slotNum--;
+			slot_scope_stack.pop();
 		}
 		return null;
 	}
@@ -562,8 +557,9 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 	@Override
 	public Object visitDec(Dec declaration, Object arg) throws Exception {
 		//TODO Implement this
-		slot_stack++;
-		declaration.slot_number = slot_stack;
+//		slot_stack++;
+		slot_scope_stack.push(slot_inc++);
+		declaration.slot_number = slot_scope_stack.peek();
 		return null;
 	}
 
@@ -744,7 +740,7 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 		if(identExpression.get_dec() instanceof ParamDec)
 		{
 			mv.visitVarInsn(ALOAD, 0);
-			mv.visitFieldInsn(PUTFIELD, className, identExpression.getFirstToken().getText(), identExpression.get_type().getJVMTypeDesc());
+			mv.visitFieldInsn(GETFIELD, className, identExpression.get_dec().getIdent().getText(), identExpression.get_dec().getType().getJVMTypeDesc());
 		}
 
 		else
@@ -768,7 +764,8 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 		{
 			mv.visitVarInsn(ALOAD, 0);
 			mv.visitInsn(SWAP);
-			mv.visitFieldInsn(GETFIELD, className, identX.getFirstToken().getText(), identX.get_type().getJVMTypeDesc());
+			mv.visitFieldInsn(PUTFIELD, className, identX.get_dec().getIdent().getText(),
+					identX.get_dec().getType().getJVMTypeDesc());
 		}
 		else
 		{
@@ -807,7 +804,23 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 
 	@Override
 	public Object visitImageOpChain(ImageOpChain imageOpChain, Object arg) throws Exception {
-		assert false : "not yet implemented";
+		imageOpChain.getArg().visit(this, arg);
+		switch (imageOpChain.getFirstToken().kind) {
+		case OP_WIDTH:
+			mv.visitMethodInsn(INVOKEVIRTUAL, "java/awt/image/BufferedImage", "getWidth", "()I", false);
+			break;
+
+		case OP_HEIGHT:
+			mv.visitMethodInsn(INVOKEVIRTUAL, "java/awt/image/BufferedImage", "getHeight", "()I", false);
+			break;
+
+		case KW_SCALE:
+			mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "scale", PLPRuntimeImageOps.scaleSig, false);
+			break;
+
+		default:
+			break;
+		}
 		return null;
 	}
 

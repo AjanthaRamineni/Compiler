@@ -65,25 +65,26 @@ public class TypeCheckVisitor implements ASTVisitor {
 	public Object visitBinaryChain(BinaryChain binaryChain, Object arg) throws Exception {
 		// TODO Auto-generated method stub
 		Chain chain = binaryChain.getE0();
-		chain.visit(this, arg);		
+		chain.visit(this, arg);
 		Token token_first = binaryChain.getFirstToken();
 		ChainElem chain_elem = binaryChain.getE1();
 		chain_elem.visit(this, arg);
 		Token token = binaryChain.getArrow();
 		if(token.isKind(ARROW))
 		{
-			if (chain.get_type().equals(URL) && chain_elem.get_type().equals(IMAGE)){
+			if (chain.get_type().equals(URL) && chain_elem.get_type().equals(IMAGE))
+			{
 				binaryChain.set_type(IMAGE);
 			}
 			else if (chain.get_type().equals(FILE) && chain_elem.get_type().equals(IMAGE)){
 				binaryChain.set_type(IMAGE);
 			}
-			
+
 			else if(chain.get_type().equals(FRAME) &&  (chain_elem.getFirstToken().isKind(KW_XLOC)|| chain_elem.getFirstToken().isKind(KW_YLOC)) )
 			{
 				binaryChain.set_type(INTEGER);
 			}
-//					if(chain_elem.getFirstToken().isKind(KW_SHOW)||chain_elem.getFirstToken().isKind(KW_HIDE)|| chain_elem.getFirstToken().isKind(KW_MOVE)|| chain_elem.getFirstToken().isKind(KW_XLOC)|| chain_elem.getFirstToken().isKind(KW_YLOC))			
+//					if(chain_elem.getFirstToken().isKind(KW_SHOW)||chain_elem.getFirstToken().isKind(KW_HIDE)|| chain_elem.getFirstToken().isKind(KW_MOVE)|| chain_elem.getFirstToken().isKind(KW_XLOC)|| chain_elem.getFirstToken().isKind(KW_YLOC))
 			else if(chain.get_type().equals(FRAME) &&   (chain_elem.getFirstToken().isKind(KW_SHOW)|| chain_elem.getFirstToken().isKind(KW_HIDE)|| chain_elem.getFirstToken().isKind(KW_MOVE)))
 			{
 //					if(chain_elem.getFirstToken().isKind(KW_SHOW)||chain_elem.getFirstToken().isKind(KW_HIDE)|| chain_elem.getFirstToken().isKind(KW_MOVE)|| chain_elem.getFirstToken().isKind(KW_XLOC)|| chain_elem.getFirstToken().isKind(KW_YLOC))
@@ -111,8 +112,12 @@ public class TypeCheckVisitor implements ASTVisitor {
 //					if(chain_elem.getFirstToken().isKind(OP_WIDTH)||chain_elem.getFirstToken().isKind(OP_HEIGHT)|| chain_elem.getFirstToken().isKind(KW_SCALE))
 						binaryChain.set_type(IMAGE);
 			}
-			else if(chain.get_type().equals(IMAGE)  && chain_elem.getFirstToken().isKind(IDENT)){
+			else if(chain.get_type().equals(IMAGE)  && chain_elem.getFirstToken().isKind(IDENT) && chain_elem.get_type().equals(IMAGE)){
 					binaryChain.set_type(IMAGE);
+			}
+			else if(chain.get_type().equals(INTEGER) && chain_elem.getFirstToken().isKind(Kind.IDENT) && chain_elem.get_type().equals(INTEGER))
+			{
+				binaryChain.set_type(INTEGER);
 			}
 			else
 				throw new TypeCheckException("Error!");
@@ -151,7 +156,7 @@ public class TypeCheckVisitor implements ASTVisitor {
 				binaryExpression.set_type(INTEGER);
 			else if (expr2.get_type().equals(IMAGE) && expr1.get_type().equals(IMAGE))
 				binaryExpression.set_type(IMAGE);
-			else 
+			else
 				throw new TypeCheckException("Error");
 		}
 		else if(op.kind.equals(TIMES))
@@ -188,7 +193,7 @@ public class TypeCheckVisitor implements ASTVisitor {
 			else
 				throw new TypeCheckException("Error");
 		}
-		else 
+		else
 			throw new TypeCheckException("Error");
 		return null;
 	}
@@ -203,7 +208,7 @@ public class TypeCheckVisitor implements ASTVisitor {
 		for(j=0,i=0; i<decs_stack.size() && j<stat_stack.size();)
 		{
 			if(decs_stack.get(i).firstToken.pos > stat_stack.get(j).firstToken.pos)
-			{	
+			{
 				stat_stack.get(j).visit(this, arg);
 				j++;
 			}
@@ -243,7 +248,7 @@ public class TypeCheckVisitor implements ASTVisitor {
 	public Object visitFrameOpChain(FrameOpChain frameOpChain, Object arg) throws Exception {
 		// TODO Auto-generated method stub
 		Tuple tuple = frameOpChain.getArg();
-		if (frameOpChain.firstToken.isKind(KW_SHOW)||frameOpChain.firstToken.isKind(KW_HIDE)) 
+		if (frameOpChain.firstToken.isKind(KW_SHOW)||frameOpChain.firstToken.isKind(KW_HIDE))
 		{
 			if (tuple.getExprList().size() != 0){
 				throw new TypeCheckException("Error");
@@ -255,15 +260,15 @@ public class TypeCheckVisitor implements ASTVisitor {
 			if (tuple.getExprList().size() != 0){
 				throw new TypeCheckException("Error");
 			}
-			frameOpChain.set_type(TypeName.INTEGER);   
-		}	
+			frameOpChain.set_type(TypeName.INTEGER);
+		}
 		else if(frameOpChain.firstToken.isKind(KW_MOVE))
 		{
 			if (tuple.getExprList().size() != 2){
 				throw new TypeCheckException("Error");
 			}
 			frameOpChain.set_type(NONE);
-				
+
 		}
 		else
 			throw new TypeCheckException("Error");
@@ -387,10 +392,10 @@ public class TypeCheckVisitor implements ASTVisitor {
 	@Override
 	public Object visitParamDec(ParamDec paramDec, Object arg) throws Exception {
 		// TODO Auto-generated method stub
-		if(symtab.insert(paramDec.getIdent().getText(), paramDec))	
+		if(symtab.insert(paramDec.getIdent().getText(), paramDec))
 			return null;
 		else
-			throw new TypeCheckException("Error"); 
+			throw new TypeCheckException("Error");
 	}
 
 	@Override
@@ -403,7 +408,7 @@ public class TypeCheckVisitor implements ASTVisitor {
 	@Override
 	public Object visitImageOpChain(ImageOpChain imageOpChain, Object arg) throws Exception {
 		// TODO Auto-generated method stub
-		 
+
 		Tuple tuple = imageOpChain.getArg();
 //		imageOpChain.set_type(Type.getTypeName(imageOpChain.firstToken));
 		if (imageOpChain.firstToken.isKind(OP_WIDTH)||imageOpChain.firstToken.isKind( OP_HEIGHT))
@@ -434,6 +439,6 @@ public class TypeCheckVisitor implements ASTVisitor {
 		}
 		return null;
 	}
-	
+
 
 }

@@ -3744,8 +3744,6 @@ public class CodeGenVisitorTest {
 
     }
 
-
-
     @Test
 
     public void testBinaryExp2() throws Exception
