@@ -8,6 +8,7 @@ public class Dec extends ASTNode {
 
 	final Token ident;
 	public int slot_number;
+	public boolean is_Initialized;
 
 	public Dec(Token firstToken, Token ident) {
 		super(firstToken);
