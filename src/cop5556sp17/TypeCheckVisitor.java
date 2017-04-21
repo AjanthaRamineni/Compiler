@@ -170,10 +170,14 @@ public class TypeCheckVisitor implements ASTVisitor {
 			else
 				throw new TypeCheckException("Error");
 		}
-		else if(op.kind.equals(DIV))
+		else if(op.kind.equals(DIV) || op.kind.equals(MOD))
 		{
 			if (expr2.get_type().equals(INTEGER) && expr1.get_type().equals(INTEGER))
 				binaryExpression.set_type(INTEGER);
+			else if ( (expr2.get_type().equals(INTEGER)) && (expr1.get_type().equals(IMAGE)))
+			{
+				binaryExpression.set_type(TypeName.IMAGE);
+			}
 			else
 				throw new TypeCheckException("Error");
 		}
@@ -192,6 +196,17 @@ public class TypeCheckVisitor implements ASTVisitor {
 				binaryExpression.set_type(BOOLEAN);
 			else
 				throw new TypeCheckException("Error");
+		}
+		else if (op.kind.equals(AND) || op.kind.equals(OR))
+		{
+			if (expr1.get_type().equals(TypeName.BOOLEAN) && expr2.get_type().equals(TypeName.BOOLEAN))
+			{
+				binaryExpression.set_type(BOOLEAN);
+			}
+			else
+			{
+				throw new TypeCheckException("Type check Error");
+			}
 		}
 		else
 			throw new TypeCheckException("Error");
@@ -268,7 +283,7 @@ public class TypeCheckVisitor implements ASTVisitor {
 				throw new TypeCheckException("Error");
 			}
 			frameOpChain.set_type(NONE);
-
+			tuple.visit(this, arg);
 		}
 		else
 			throw new TypeCheckException("Error");
@@ -423,6 +438,7 @@ public class TypeCheckVisitor implements ASTVisitor {
 				throw new TypeCheckException("Error");
 			}
 			imageOpChain.set_type(TypeName.IMAGE);
+			tuple.visit(this, arg);
 		}
 		return null;
 	}
