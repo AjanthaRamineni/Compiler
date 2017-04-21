@@ -5,12 +5,12 @@ import cop5556sp17.Scanner.Token;
 import cop5556sp17.AST.Type.TypeName;
 
 public class Dec extends ASTNode {
-	
+
 	final Token ident;
+	public int slot_number;
 
 	public Dec(Token firstToken, Token ident) {
 		super(firstToken);
-
 		this.ident = ident;
 	}
 
@@ -26,8 +26,8 @@ public class Dec extends ASTNode {
 	public String toString() {
 		return "Dec [ident=" + ident + ", firstToken=" + firstToken + "]";
 	}
-	
-	
+
+
 
 	@Override
 	public int hashCode() {

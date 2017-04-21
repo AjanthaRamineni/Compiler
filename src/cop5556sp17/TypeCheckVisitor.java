@@ -278,6 +278,7 @@ public class TypeCheckVisitor implements ASTVisitor {
 		if (dec == null)
 			throw new TypeCheckException("Error");
 		identChain.set_type(dec.getType());
+		identChain.declare = dec;
 		return null;
 	}
 
@@ -364,7 +365,7 @@ public class TypeCheckVisitor implements ASTVisitor {
 		ident.visit(this, arg);
 		Expression expr = assignStatement.getE();
 		expr.visit(this, arg);
-		System.out.println("Expr Type..."+expr.get_type()+"ID Type"+ident.get_type());
+//		System.out.println("Expr Type..."+expr.get_type()+"ID Type"+ident.get_type());
 		if ( !(expr.get_type().equals( ident.get_type())) ){
 			throw new TypeCheckException("Error");
 		}

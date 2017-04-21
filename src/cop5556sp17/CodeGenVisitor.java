@@ -14,7 +14,7 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.util.TraceClassVisitor;
-
+import cop5556sp17.AST.Type.*;
 import cop5556sp17.Scanner.Kind;
 import cop5556sp17.Scanner.Token;
 import cop5556sp17.AST.ASTVisitor;
@@ -44,6 +44,7 @@ import cop5556sp17.AST.Tuple;
 import cop5556sp17.AST.Type.TypeName;
 import cop5556sp17.AST.WhileStatement;
 
+import static cop5556sp17.AST.Type.TypeName.*;
 import static cop5556sp17.AST.Type.TypeName.FRAME;
 import static cop5556sp17.AST.Type.TypeName.IMAGE;
 import static cop5556sp17.AST.Type.TypeName.URL;
@@ -59,6 +60,8 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 	 * @param sourceFileName
 	 *            name of source file, may be null.
 	 */
+	int slot_stack=1;
+
 	public CodeGenVisitor(boolean DEVEL, boolean GRADE, String sourceFileName) {
 		super();
 		this.DEVEL = DEVEL;
@@ -105,8 +108,13 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 		// pass in mv so decs can add their initialization code to the
 		// constructor.
 		ArrayList<ParamDec> params = program.getParams();
+		int i=0;
 		for (ParamDec dec : params)
+		{
+			dec.slot_number = i++;
+			cw.visitField(0, dec.getIdent().getText(), dec.getType().getJVMTypeDesc(), null, null);
 			dec.visit(this, mv);
+		}
 		mv.visitInsn(RETURN);
 		// create label at end of code
 		Label constructorEnd = new Label();
@@ -194,30 +202,313 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 	@Override
 	public Object visitBinaryExpression(BinaryExpression binaryExpression, Object arg) throws Exception {
       //TODO  Implement this
+		TypeName type0,type1;
+		Token op;
+		type0 = binaryExpression.getE0().get_type();
+		type1 = binaryExpression.getE1().get_type();
+		op = binaryExpression.getOp();
+		//Visiting E0 and E1
+		if(op.kind.equals(PLUS))
+		{
+			binaryExpression.getE0().visit(this, arg);
+			binaryExpression.getE1().visit(this, arg);
+			if(type0==TypeName.INTEGER &&  type1==TypeName.INTEGER)
+			{
+				mv.visitInsn(IADD);
+			}
+			else
+			{
+				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "add", PLPRuntimeImageOps.addSig, false);
+			}
+		}
+		else if(op.kind.equals(MINUS))
+		{
+			binaryExpression.getE0().visit(this, arg);
+			binaryExpression.getE1().visit(this, arg);
+			if(type0==TypeName.INTEGER &&  type1==TypeName.INTEGER)
+			{
+				mv.visitInsn(ISUB);
+			}
+			else
+			{
+				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "sub", PLPRuntimeImageOps.subSig, false);
+			}
+		}
+		else if(op.kind==(TIMES))
+		{
+			binaryExpression.getE0().visit(this, arg);
+			binaryExpression.getE1().visit(this, arg);
+			if ((type0 == TypeName.INTEGER) && (type1 == TypeName.INTEGER))
+			{
+				mv.visitInsn(IMUL);
+			}
+			else if ((type0 == TypeName.INTEGER) && (type1 == TypeName.IMAGE))
+			{
+				mv.visitInsn(SWAP);
+				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "mul", PLPRuntimeImageOps.mulSig, false);
+			}
+			else
+			{
+				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "mul", PLPRuntimeImageOps.mulSig, false);
+			}
+		}
+		else if(op.kind==(DIV))
+		{
+			binaryExpression.getE0().visit(this, arg);
+			binaryExpression.getE1().visit(this, arg);
+			if ((type0 == TypeName.INTEGER) && (type1 == TypeName.INTEGER))
+			{
+				mv.visitInsn(IDIV);
+			}
+			else
+			{
+				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "div", PLPRuntimeImageOps.divSig, false);
+			}
+		}
+		else if(op.kind==(MOD))
+		{
+			binaryExpression.getE0().visit(this, arg);
+			binaryExpression.getE1().visit(this, arg);
+			if ((type0 == TypeName.INTEGER) && (type1 == TypeName.INTEGER))
+			{
+				mv.visitInsn(IREM);
+
+			}
+			else
+			{
+				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "mod", PLPRuntimeImageOps.modSig, false);
+			}
+		}
+		switch (op.kind) {
+		case OR:
+			binaryExpression.getE0().visit(this, arg);
+			Label label1_or = new Label();
+			mv.visitJumpInsn(IFNE, label1_or);
+			binaryExpression.getE1().visit(this, arg);
+			mv.visitJumpInsn(IFNE, label1_or);
+			mv.visitInsn(ICONST_0);
+			Label label2_or = new Label();
+			mv.visitJumpInsn(GOTO, label2_or);
+			mv.visitLabel(label1_or);
+			mv.visitInsn(ICONST_1);
+			mv.visitLabel(label2_or);
+			break;
+
+		case AND:
+			binaryExpression.getE0().visit(this, arg);
+			Label label1_and = new Label();
+			mv.visitJumpInsn(IFEQ, label1_and);
+			binaryExpression.getE1().visit(this, arg);
+			mv.visitJumpInsn(IFEQ, label1_and);
+			mv.visitInsn(ICONST_1);
+			Label label2_and = new Label();
+			mv.visitJumpInsn(GOTO, label2_and);
+			mv.visitLabel(label1_and);
+			mv.visitInsn(ICONST_0);
+			mv.visitLabel(label2_and);
+			break;
+
+		case LT:
+			binaryExpression.getE0().visit(this, arg);
+			binaryExpression.getE1().visit(this, arg);
+			Label label1_lt = new Label();
+			mv.visitJumpInsn(IF_ICMPGE, label1_lt);
+			mv.visitInsn(ICONST_1);
+			Label label2_lt = new Label();
+			mv.visitJumpInsn(GOTO, label2_lt);
+			mv.visitLabel(label1_lt);
+			mv.visitInsn(ICONST_0);
+			mv.visitLabel(label2_lt);
+			break;
+
+		case LE:
+			binaryExpression.getE0().visit(this, arg);
+			binaryExpression.getE1().visit(this, arg);
+			Label label1_le = new Label();
+			mv.visitJumpInsn(IF_ICMPGT, label1_le);
+			mv.visitInsn(ICONST_1);
+			Label label2_le = new Label();
+			mv.visitJumpInsn(GOTO, label2_le);
+			mv.visitLabel(label1_le);
+			mv.visitInsn(ICONST_0);
+			mv.visitLabel(label2_le);
+
+			break;
+
+		case GT:
+			binaryExpression.getE0().visit(this, arg);
+			binaryExpression.getE1().visit(this, arg);
+			Label label1_gt = new Label();
+			mv.visitJumpInsn(IF_ICMPLE, label1_gt);
+			mv.visitInsn(ICONST_1);
+			Label label2_gt = new Label();
+			mv.visitJumpInsn(GOTO, label2_gt);
+			mv.visitLabel(label1_gt);
+			mv.visitInsn(ICONST_0);
+			mv.visitLabel(label2_gt);
+			break;
+
+		case GE:
+			binaryExpression.getE0().visit(this, arg);
+			binaryExpression.getE1().visit(this, arg);
+			Label label1_ge = new Label();
+			mv.visitJumpInsn(IF_ICMPLT, label1_ge);
+			mv.visitInsn(ICONST_1);
+			Label label2_ge = new Label();
+			mv.visitJumpInsn(GOTO, label2_ge);
+			mv.visitLabel(label1_ge);
+			mv.visitInsn(ICONST_0);
+			mv.visitLabel(label2_ge);
+			break;
+
+		case EQUAL:
+			binaryExpression.getE0().visit(this, arg);
+			binaryExpression.getE1().visit(this, arg);
+			if (type0 == TypeName.INTEGER || type0 == BOOLEAN)
+			{
+				Label label1_eq = new Label();
+				mv.visitJumpInsn(IF_ICMPNE, label1_eq);
+				mv.visitInsn(ICONST_1);
+				Label label2_eq = new Label();
+				mv.visitJumpInsn(GOTO, label2_eq);
+				mv.visitLabel(label1_eq);
+				mv.visitInsn(ICONST_0);
+				mv.visitLabel(label2_eq);
+			}
+			else
+			{
+				Label label1_eq = new Label();
+				mv.visitJumpInsn(IF_ACMPNE, label1_eq);
+				mv.visitInsn(ICONST_1);
+				Label label2_eq = new Label();
+				mv.visitJumpInsn(GOTO, label2_eq);
+				mv.visitLabel(label1_eq);
+				mv.visitInsn(ICONST_0);
+				mv.visitLabel(label2_eq);
+			}
+
+			break;
+
+		case NOTEQUAL:
+			binaryExpression.getE0().visit(this, arg);
+			binaryExpression.getE1().visit(this, arg);
+			if (type0 == TypeName.INTEGER || type0 == BOOLEAN)
+			{
+				Label label1_neq = new Label();
+				mv.visitJumpInsn(IF_ICMPEQ, label1_neq);
+				mv.visitInsn(ICONST_1);
+				Label label2_neq = new Label();
+				mv.visitJumpInsn(GOTO, label2_neq);
+				mv.visitLabel(label1_neq);
+				mv.visitInsn(ICONST_0);
+				mv.visitLabel(label2_neq);
+			}
+			else
+			{
+				Label label1_neq = new Label();
+				mv.visitJumpInsn(IF_ACMPEQ, label1_neq);
+				mv.visitInsn(ICONST_1);
+				Label label2_neq = new Label();
+				mv.visitJumpInsn(GOTO, label2_neq);
+				mv.visitLabel(label1_neq);
+				mv.visitInsn(ICONST_0);
+				mv.visitLabel(label2_neq);
+			}
+			break;
+
+		default:
+			break;
+		}
 		return null;
 	}
 
 	@Override
 	public Object visitBlock(Block block, Object arg) throws Exception {
 		//TODO  Implement this
+//		int slot_number=(int)arg;
+		Label block_start = new Label();
+		mv.visitLineNumber(block.getFirstToken().getLinePos().line, block_start);
+		mv.visitLabel(block_start);
+		ArrayList<Dec> decs_stack = block.getDecs();
+		ArrayList<Statement> stat_stack = block.getStatements();
+		int i,j;
+		Label start_label = new Label();
+		mv.visitLabel(start_label);
+		for(j=0,i=0; i<decs_stack.size() && j<stat_stack.size();)
+		{
+			if(decs_stack.get(i).firstToken.pos > stat_stack.get(j).firstToken.pos)
+			{
+				stat_stack.get(j).visit(this, mv);
+
+				if (stat_stack.get(j) instanceof BinaryChain)
+				{
+					mv.visitInsn(POP);
+				}
+				j++;
+			}
+			else
+			{
+				decs_stack.get(i).visit(this, mv);
+				i++;
+			}
+		}
+		for(int i1=i;i1<decs_stack.size();i1++)
+		{
+			decs_stack.get(i1).visit(this, mv);
+		}
+		for(int j1=j;j1<stat_stack.size();j1++)
+		{
+			stat_stack.get(j1).visit(this, mv);
+			if (stat_stack.get(j) instanceof BinaryChain)
+			{
+				mv.visitInsn(POP);
+			}
+		}
+		Label end_label = new Label();
+		mv.visitLineNumber(0, end_label);
+		mv.visitLabel(end_label);
+		//Need to check
+		List<Dec> list = block.getDecs();
+		for (Dec dec : list)
+		{
+			mv.visitLocalVariable(dec.getIdent().getText(), dec.getType().getJVMTypeDesc(), null, block_start,
+			end_label, dec.slot_number);
+		}
 		return null;
 	}
 
 	@Override
 	public Object visitBooleanLitExpression(BooleanLitExpression booleanLitExpression, Object arg) throws Exception {
 		//TODO Implement this
+		if(booleanLitExpression.getValue()==true)
+			mv.visitInsn(ICONST_1);
+		else
+			mv.visitInsn(ICONST_0);
 		return null;
 	}
 
 	@Override
 	public Object visitConstantExpression(ConstantExpression constantExpression, Object arg) {
-		assert false : "not yet implemented";
+		ConstantExpression cons_exp = constantExpression;
+		Token cons_first_token  = cons_exp.getFirstToken();
+		if (cons_first_token.isKind(Kind.KW_SCREENHEIGHT))
+		{
+			mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeFrame.JVMClassName, "getScreenHeight",
+					PLPRuntimeFrame.getScreenHeightSig, false);
+		}
+		else if (cons_first_token.isKind(Kind.KW_SCREENWIDTH))
+		{
+			mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeFrame.JVMClassName, "getScreenWidth",
+					PLPRuntimeFrame.getScreenWidthSig, false);
+		}
 		return null;
 	}
 
 	@Override
 	public Object visitDec(Dec declaration, Object arg) throws Exception {
 		//TODO Implement this
+		slot_stack++;
+		declaration.slot_number = slot_stack;
 		return null;
 	}
 
@@ -242,12 +533,55 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 	@Override
 	public Object visitIdentExpression(IdentExpression identExpression, Object arg) throws Exception {
 		//TODO Implement this
+		if(identExpression.get_dec() instanceof ParamDec)
+		{
+			mv.visitVarInsn(ALOAD, 0);
+			mv.visitFieldInsn(PUTFIELD, className, identExpression.getFirstToken().getText(), identExpression.get_type().getJVMTypeDesc());
+		}
+
+		else
+		{
+			if (identExpression.get_type() == TypeName.INTEGER || identExpression.get_type() == TypeName.BOOLEAN)
+			{
+				mv.visitVarInsn(ILOAD, identExpression.get_dec().slot_number);
+			}
+			else
+			{
+				mv.visitVarInsn(ALOAD, identExpression.get_dec().slot_number);
+			}
+		}
 		return null;
 	}
 
 	@Override
 	public Object visitIdentLValue(IdentLValue identX, Object arg) throws Exception {
 		//TODO Implement this
+		if(identX.get_dec() instanceof ParamDec)
+		{
+			mv.visitVarInsn(ALOAD, 0);
+			mv.visitInsn(SWAP);
+			mv.visitFieldInsn(GETFIELD, className, identX.getFirstToken().getText(), identX.get_type().getJVMTypeDesc());
+		}
+		else
+		{
+			if (identX.get_dec().getType() == IMAGE)
+			{
+				mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageOps.JVMName, "copyImage", PLPRuntimeImageOps.copyImageSig, false);
+				mv.visitVarInsn(ASTORE, identX.get_dec().slot_number);
+//				identX.get_dec().setInitialized(true);
+			}
+			else if (identX.get_dec().getType() == TypeName.INTEGER || identX.get_dec().getType() == TypeName.BOOLEAN)
+			{
+				mv.visitVarInsn(ISTORE, identX.get_dec().slot_number);
+//				identX.get_dec().setInitialized(true);
+			}
+			else
+			{
+				mv.visitVarInsn(ASTORE, identX.get_dec().slot_number);
+//				identX.getDec().setInitialized(true);
+			}
+		}
+//			mv.visitVarInsn(ILOAD,1);
 		return null;
 
 	}
@@ -255,6 +589,11 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 	@Override
 	public Object visitIfStatement(IfStatement ifStatement, Object arg) throws Exception {
 		//TODO Implement this
+		ifStatement.getE().visit(this, arg);
+		Label if_true = new Label();
+		mv.visitJumpInsn(IFEQ, if_true);
+		ifStatement.getB().visit(this, arg);
+		mv.visitLabel(if_true);
 		return null;
 	}
 
@@ -267,7 +606,7 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 	@Override
 	public Object visitIntLitExpression(IntLitExpression intLitExpression, Object arg) throws Exception {
 		//TODO Implement this
-		mv.visitIntInsn(BIPUSH, intLitExpression.value);
+		mv.visitLdcInsn(intLitExpression.value);
 		return null;
 	}
 
@@ -276,25 +615,83 @@ public class CodeGenVisitor implements ASTVisitor, Opcodes {
 	public Object visitParamDec(ParamDec paramDec, Object arg) throws Exception {
 		//TODO Implement this
 		//For assignment 5, only needs to handle integers and booleans
+		MethodVisitor mv = (MethodVisitor) arg;
+		TypeName type_name = paramDec.getType();
+		switch (type_name) {
+		case BOOLEAN:
+			mv.visitVarInsn(ALOAD, 0);
+			mv.visitVarInsn(ALOAD, 1);
+			mv.visitLdcInsn(paramDec.slot_number);
+			mv.visitInsn(AALOAD);
+			mv.visitMethodInsn(INVOKESTATIC, "java/lang/Boolean", "parseBoolean", "(Ljava/lang/String;)Z", false);
+			mv.visitFieldInsn(PUTFIELD, className, paramDec.getIdent().getText(), "Z");
+			break;
+
+		case INTEGER:
+			mv.visitVarInsn(ALOAD, 0);
+			mv.visitVarInsn(ALOAD, 1);
+			mv.visitLdcInsn(paramDec.slot_number);
+			mv.visitInsn(AALOAD);
+			mv.visitMethodInsn(INVOKESTATIC, "java/lang/Integer", "parseInt", "(Ljava/lang/String;)I", false);
+			mv.visitFieldInsn(PUTFIELD, className, paramDec.getIdent().getText(), "I");
+			break;
+
+		case FILE:
+			mv.visitVarInsn(ALOAD, 0);
+			mv.visitTypeInsn(NEW, "java/io/File");
+			mv.visitInsn(DUP);
+			mv.visitVarInsn(ALOAD, 1);
+			mv.visitLdcInsn(paramDec.slot_number);
+			mv.visitInsn(AALOAD);
+			mv.visitMethodInsn(INVOKESPECIAL, "java/io/File", "<init>", "(Ljava/lang/String;)V", false);
+			mv.visitFieldInsn(PUTFIELD, className, paramDec.getIdent().getText(), "Ljava/io/File;");
+			break;
+
+		case URL:
+
+			mv.visitVarInsn(ALOAD, 0);
+			mv.visitVarInsn(ALOAD, 1);
+			mv.visitLdcInsn(paramDec.slot_number);
+			mv.visitMethodInsn(INVOKESTATIC, PLPRuntimeImageIO.className, "getURL", PLPRuntimeImageIO.getURLSig, false);
+			mv.visitFieldInsn(PUTFIELD, className, paramDec.getIdent().getText(), "Ljava/net/URL;");
+
+			break;
+
+		default:
+			break;
+		}
 		return null;
 
 	}
 
 	@Override
 	public Object visitSleepStatement(SleepStatement sleepStatement, Object arg) throws Exception {
-		assert false : "not yet implemented";
+		sleepStatement.getE().visit(this, arg);
+		mv.visitInsn(I2L);
+		mv.visitMethodInsn(INVOKESTATIC, "java/lang/Thread", "sleep", "(J)V", false);
 		return null;
 	}
 
 	@Override
 	public Object visitTuple(Tuple tuple, Object arg) throws Exception {
-		assert false : "not yet implemented";
+		for (Expression expression : tuple.getExprList())
+		{
+			expression.visit(this, arg);
+		}
 		return null;
 	}
 
 	@Override
 	public Object visitWhileStatement(WhileStatement whileStatement, Object arg) throws Exception {
 		//TODO Implement this
+		Label check_guard_while = new Label();
+		mv.visitJumpInsn(GOTO, check_guard_while);
+		Label check_body_while = new Label();
+		mv.visitLabel(check_body_while);
+		whileStatement.getB().visit(this, arg);
+		mv.visitLabel(check_guard_while);
+		whileStatement.getE().visit(this, arg);
+		mv.visitJumpInsn(IFNE, check_body_while);
 		return null;
 	}
 
